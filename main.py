@@ -73,13 +73,51 @@ cyprus.open_spi()
 # ////////////////////////////////////////////////////////////////
 
 sm = ScreenManager()
-arm = stepper(port = 0, speed = 10)
+arm = stepper(port=0, micro_steps=32, hold_current=20, run_current=20, accel_current=20, deaccel_current=20,
+               steps_per_unit=25, speed=10)
 
 # ////////////////////////////////////////////////////////////////
 # //                       MAIN FUNCTIONS                       //
 # //             SHOULD INTERACT DIRECTLY WITH HARDWARE         //
 # ////////////////////////////////////////////////////////////////
-	
+
+
+def toggle_arm():
+    pass
+
+
+def move_arm():
+    pass
+
+
+def is_ball_on_lower():
+    pass
+
+
+def is_ball_on_upper():
+    pass
+
+
+def toggle_magnet():
+    global ON
+    if ON:
+        cyprus.set_servo_position(2, 0.05)
+    else:
+        cyprus.set_servo_position(2, 0.5)
+    ON = not ON
+
+
+# ////////////////////////////////////////////////////////////////
+# //        DEFINE MAINSCREEN CLASS THAT KIVY RECOGNIZES        //
+# //                                                            //
+# //   KIVY UI CAN INTERACT DIRECTLY W/ THE FUNCTIONS DEFINED   //
+# //     CORRESPONDS TO BUTTON/SLIDER/WIDGET "on_release"       //
+# //                                                            //
+# //   SHOULD REFERENCE MAIN FUNCTIONS WITHIN THESE FUNCTIONS   //
+# //      SHOULD NOT INTERACT DIRECTLY WITH THE HARDWARE        //
+# ////////////////////////////////////////////////////////////////
+
+
 class MainScreen(Screen):
     version = cyprus.read_firmware_version()
     armPosition = 0
@@ -92,7 +130,7 @@ class MainScreen(Screen):
     def debounce(self):
         processInput = False
         currentTime = time.clock()
-        if ((currentTime - self.lastClick) > DEBOUNCE):
+        if (currentTime - self.lastClick) > DEBOUNCE:
             processInput = True
         self.lastClick = currentTime
         return processInput
@@ -119,6 +157,7 @@ class MainScreen(Screen):
         print("Determine if ball is on the bottom tower")
         
     def initialize(self):
+        toggle_magnet()
         print("Home arm and turn off magnet")
 
     def resetColors(self):
@@ -127,9 +166,15 @@ class MainScreen(Screen):
         self.ids.auto.color = BLUE
 
     def quit(self):
+        print("Exit")
+        arm.free_all()
+        GPIO.cleanup()
+        GPIO.cleanup()
+        cyprus.close()
         MyApp().stop()
-    
-sm.add_widget(MainScreen(name = 'main'))
+
+
+sm.add_widget(MainScreen(name='main'))
 
 
 # ////////////////////////////////////////////////////////////////
@@ -137,4 +182,3 @@ sm.add_widget(MainScreen(name = 'main'))
 # ////////////////////////////////////////////////////////////////
 
 MyApp().run()
-cyprus.close_spi()
