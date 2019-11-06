@@ -83,7 +83,12 @@ arm = stepper(port=0, micro_steps=32, hold_current=20, run_current=20, accel_cur
 
 
 def toggle_arm():
-    pass
+    global UP
+    if UP:
+        cyprus.set_pwm_values(1, period_value=100000, compare_value=100000, compare_mode=cyprus.LESS_THAN_OR_EQUAL)
+    else:
+        cyprus.set_pwm_values(1, period_value=100000, compare_value=0, compare_mode=cyprus.LESS_THAN_OR_EQUAL)
+    UP = not UP
 
 
 def move_arm():
@@ -101,9 +106,9 @@ def is_ball_on_upper():
 def toggle_magnet():
     global ON
     if ON:
-        cyprus.set_servo_position(2, 0.05)
-    else:
         cyprus.set_servo_position(2, 0.5)
+    else:
+        cyprus.set_servo_position(2, 1)
     ON = not ON
 
 
@@ -136,10 +141,18 @@ class MainScreen(Screen):
         return processInput
 
     def toggleArm(self):
-        print("Process arm movement here")
+        toggle_arm()
+        if UP:
+            self.ids.armControl.text = "Lower Arm"
+        else:
+            self.ids.armControl.text = "Raise Arm"
 
     def toggleMagnet(self):
-        print("Process magnet here")
+        toggle_magnet()
+        if ON:
+            self.ids.magnetControl.text = "Drop Ball"
+        else:
+            self.ids.magnetControl.text = "Hold Ball"
         
     def auto(self):
         print("Run the arm automatically here")
