@@ -38,7 +38,7 @@ from pidev.Cyprus_Commands import Cyprus_Commands_RPi as cyprus
 # ////////////////////////////////////////////////////////////////
 START = True
 STOP = False
-UP = False
+UP = True
 DOWN = True
 ON = True
 OFF = False
@@ -49,8 +49,8 @@ COUNTERCLOCKWISE = 1
 ARM_SLEEP = 2.5
 DEBOUNCE = 0.10
 
-lowerTowerPosition = 60
-upperTowerPosition = 76
+lowerTowerPosition = 47
+upperTowerPosition = 60
 
 
 # ////////////////////////////////////////////////////////////////
@@ -91,8 +91,11 @@ def toggle_arm():
     UP = not UP
 
 
-def move_arm():
-    pass
+def move_arm(pos):
+    if pos == 0:
+        arm.home(0)
+    else:
+        arm.start_go_to_position(pos / 5.0)
 
 
 def is_ball_on_lower():
@@ -127,6 +130,7 @@ class MainScreen(Screen):
     version = cyprus.read_firmware_version()
     armPosition = 0
     lastClick = time.clock()
+    homeDirection = 0
 
     def __init__(self, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
@@ -158,7 +162,9 @@ class MainScreen(Screen):
         print("Run the arm automatically here")
 
     def setArmPosition(self, position):
-        print("Move arm here")
+        self.armPosition = position
+        move_arm(self.armPosition)
+        self.ids.armControlLabel.text = 'Arm Position: ' + str(int(self.armPosition))
 
     def homeArm(self):
         arm.home(self.homeDirection)
@@ -171,6 +177,7 @@ class MainScreen(Screen):
         
     def initialize(self):
         toggle_magnet()
+        self.homeArm()
         print("Home arm and turn off magnet")
 
     def resetColors(self):
