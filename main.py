@@ -27,6 +27,7 @@ from kivy.core.window import Window
 from pidev.kivy import DPEAButton
 from pidev.kivy import PauseScreen
 from time import sleep
+from threading import Thread
 import RPi.GPIO as GPIO 
 from pidev.stepper import stepper
 from pidev.Cyprus_Commands import Cyprus_Commands_RPi as cyprus
@@ -50,7 +51,7 @@ ARM_SLEEP = 2.5
 DEBOUNCE = 0.10
 
 lowerTowerPosition = 47
-upperTowerPosition = 60
+upperTowerPositions = [60, 61, 59]
 
 
 # ////////////////////////////////////////////////////////////////
@@ -74,7 +75,7 @@ cyprus.open_spi()
 
 sm = ScreenManager()
 arm = stepper(port=0, micro_steps=32, hold_current=20, run_current=20, accel_current=20, deaccel_current=20,
-               steps_per_unit=25, speed=10)
+               steps_per_unit=25, speed=5)
 
 # ////////////////////////////////////////////////////////////////
 # //                       MAIN FUNCTIONS                       //
@@ -97,13 +98,19 @@ def move_arm(pos):
     else:
         arm.start_go_to_position(pos / 5.0)
 
+def move_arm_final(pos):
+    if pos == 0:
+        arm.home(0)
+    else:
+        arm.go_to_position(pos / 5.0)
+
 
 def is_ball_on_lower():
-    pass
+    return (cyprus.read_gpio() & 0b0010) == 0
 
 
 def is_ball_on_upper():
-    pass
+    return (cyprus.read_gpio() & 0b0001) == 0
 
 
 def toggle_magnet():
@@ -159,7 +166,22 @@ class MainScreen(Screen):
             self.ids.magnetControl.text = "Hold Ball"
         
     def auto(self):
-        print("Run the arm automatically here")
+        self.initialize()
+        while not is_ball_on_upper():
+            print("Please place ball on higher tower.")
+            sleep(1)
+        count = 0
+        while is_ball_on_upper():
+            move_arm_final(upperTowerPositions[count])
+            toggle_arm()
+            sleep(1)
+            toggle_magnet()
+            toggle_arm()
+            sleep(1)
+            if count < 2:
+                count = count + 1
+            else:
+                count = 0
 
     def setArmPosition(self, position):
         self.armPosition = position
@@ -169,16 +191,9 @@ class MainScreen(Screen):
     def homeArm(self):
         arm.home(self.homeDirection)
         
-    def isBallOnTallTower(self):
-        print("Determine if ball is on the top tower")
-
-    def isBallOnShortTower(self):
-        print("Determine if ball is on the bottom tower")
-        
     def initialize(self):
         toggle_magnet()
         self.homeArm()
-        print("Home arm and turn off magnet")
 
     def resetColors(self):
         self.ids.armControl.color = YELLOW
