@@ -51,7 +51,7 @@ ARM_SLEEP = 2.5
 DEBOUNCE = 0.10
 
 lowerTowerPosition = 47
-upperTowerPositions = [60, 61, 59]
+upperTowerPositions = [60, 61, 59, 62, 58]
 
 
 # ////////////////////////////////////////////////////////////////
@@ -105,8 +105,8 @@ def move_arm_final(pos):
         arm.go_to_position(pos / 5.0)
 
 
-def is_ball_on_lower():
-    return (cyprus.read_gpio() & 0b0010) == 0
+def is_ball_off_lower():
+    return (cyprus.read_gpio() & 0b0010) == 1
 
 
 def is_ball_on_upper():
@@ -120,6 +120,23 @@ def toggle_magnet():
     else:
         cyprus.set_servo_position(2, 1)
     ON = not ON
+
+
+def try_lift(function, positions):
+    global ON
+    count = 0
+    while function():
+        ON = False
+        move_arm_final(positions[count])
+        toggle_arm()
+        sleep(1)
+        toggle_magnet()
+        toggle_arm()
+        sleep(1)
+        if count < 4:
+            count = count + 1
+        else:
+            count = 0
 
 
 # ////////////////////////////////////////////////////////////////
@@ -166,22 +183,12 @@ class MainScreen(Screen):
             self.ids.magnetControl.text = "Hold Ball"
         
     def auto(self):
+        # save states of global variables and temporarily set to desired values
         self.initialize()
         while not is_ball_on_upper():
             print("Please place ball on higher tower.")
             sleep(1)
-        count = 0
-        while is_ball_on_upper():
-            move_arm_final(upperTowerPositions[count])
-            toggle_arm()
-            sleep(1)
-            toggle_magnet()
-            toggle_arm()
-            sleep(1)
-            if count < 2:
-                count = count + 1
-            else:
-                count = 0
+        try_lift(is_ball_on_upper, upperTowerPositions)
 
     def setArmPosition(self, position):
         self.armPosition = position
