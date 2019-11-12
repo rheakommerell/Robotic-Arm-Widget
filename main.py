@@ -39,7 +39,7 @@ from pidev.Cyprus_Commands import Cyprus_Commands_RPi as cyprus
 # ////////////////////////////////////////////////////////////////
 START = True
 STOP = False
-UP = True
+UP = False
 DOWN = True
 ON = True
 OFF = False
@@ -50,8 +50,8 @@ COUNTERCLOCKWISE = 1
 ARM_SLEEP = 2.5
 DEBOUNCE = 0.10
 
-lowerTowerPosition = 47
-upperTowerPositions = [60, 61, 59, 62, 58]
+lowerTowerPositions = [47, 48, 46, 49, 45]
+upperTowerPositions = [59, 60, 58, 61, 57]
 
 
 # ////////////////////////////////////////////////////////////////
@@ -98,6 +98,7 @@ def move_arm(pos):
     else:
         arm.start_go_to_position(pos / 5.0)
 
+
 def move_arm_final(pos):
     if pos == 0:
         arm.home(0)
@@ -106,7 +107,7 @@ def move_arm_final(pos):
 
 
 def is_ball_off_lower():
-    return (cyprus.read_gpio() & 0b0010) == 1
+    return (cyprus.read_gpio() & 0b0010) != 0
 
 
 def is_ball_on_upper():
@@ -122,21 +123,29 @@ def toggle_magnet():
     ON = not ON
 
 
-def try_lift(function, positions):
+def home_arm():
+    arm.home(0)
+
+
+def try_lift(function, positions, lower):
     global ON
     count = 0
     while function():
-        ON = False
         move_arm_final(positions[count])
         toggle_arm()
-        sleep(1)
-        toggle_magnet()
+        sleep(1.5)
+        if (lower and not function()) or not lower:
+            toggle_magnet()
         toggle_arm()
+        sleep(0.5)
+        if not lower and function():
+            toggle_magnet()
         sleep(1)
         if count < 4:
             count = count + 1
         else:
             count = 0
+            home_arm()
 
 
 # ////////////////////////////////////////////////////////////////
@@ -154,7 +163,6 @@ class MainScreen(Screen):
     version = cyprus.read_firmware_version()
     armPosition = 0
     lastClick = time.clock()
-    homeDirection = 0
 
     def __init__(self, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
@@ -183,24 +191,40 @@ class MainScreen(Screen):
             self.ids.magnetControl.text = "Hold Ball"
         
     def auto(self):
-        # save states of global variables and temporarily set to desired values
-        self.initialize()
-        while not is_ball_on_upper():
+        global ON
+        global UP
+        temp_on = ON
+        temp_up = UP
+        ON = True
+        toggle_magnet()
+        UP = False
+        toggle_arm()
+        for i in range(0, 50):
+            if is_ball_on_upper():
+                break
             print("Please place ball on higher tower.")
             sleep(1)
-        try_lift(is_ball_on_upper, upperTowerPositions)
+        else:
+            return
+        try_lift(is_ball_on_upper, upperTowerPositions, False)
+        try_lift(is_ball_off_lower, lowerTowerPositions, True)
+
+
+        ON = not temp_on
+        toggle_magnet()
+        UP = not temp_up
+        toggle_arm()
+        move_arm_final(self.armPosition)
 
     def setArmPosition(self, position):
         self.armPosition = position
         move_arm(self.armPosition)
         self.ids.armControlLabel.text = 'Arm Position: ' + str(int(self.armPosition))
-
-    def homeArm(self):
-        arm.home(self.homeDirection)
         
     def initialize(self):
+        toggle_arm()
         toggle_magnet()
-        self.homeArm()
+        home_arm()
 
     def resetColors(self):
         self.ids.armControl.color = YELLOW
